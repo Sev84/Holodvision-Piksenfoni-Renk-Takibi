@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PİKSENFONİ - Bütünleşik Deneyim</title>
+    
+    <!-- Gerekli Kütüphaneler (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <!-- Babel: JSX kodunu tarayıcıda çalıştırmak için -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Temel Sayfa Stilleri -->
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #0c0a18;
+            color: #fff;
+            transition: background-color 0.5s ease;
+        }
+        /* QR Okuyucu videosundaki kenarlığı kaldırır */
+        #qr-reader video { border-style: none !important; }
+        /* Özel Kaydırma Çubuğu Stilleri */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a2e; }
+        ::-webkit-scrollbar-thumb { background: #e94560; border-radius: 10px; }
+        /* Görünüm alanına girince beliren bölüm animasyonu */
+        .fade-in-section {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+        }
+        .fade-in-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <!-- Arka plan müziği çaları -->
+    <audio id="bg-music-player" src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/fon%20muzik.mp3" loop></audio>
+
+    <!-- Firebase Kurulum ve Başlatma Betiği -->
+    <script type="module">
+        // Firebase SDK'larını içe aktar
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase yapılandırmasını ve uygulama kimliğini ortamdan al
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Firebase'i başlat
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Kullanıcı girişi yap
+        try {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+            console.log("Firebase Auth successful. User UID:", auth.currentUser?.uid);
+        } catch (error) {
+            console.error("Firebase Auth Error:", error);
+        }
+
+        // Firebase fonksiyonlarını ve örneklerini global scope'a (window) ekle
+        window.db = db;
+        window.auth = auth;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.onSnapshot = onSnapshot;
+        window.appId = appId;
+    </script>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- API & GÜVENLİK ---
+        // ÖNEMLİ: ElevenLabs API anahtarı. Bu anahtarın kotası dolmuş olabilir.
+        // Premium seslendirme için kendi geçerli ElevenLabs API anahtarınızı buraya yapıştırın.
+        // Anahtar geçersizse veya boş bırakılırsa, uygulama otomatik olarak tarayıcının standart sesini kullanır.
+        const ELEVENLABS_API_KEY = "sk_06e523c1c3688282e8421a4da028fed650a11643c6d33879"; 
+
+        // --- ICON BILEŞENLERİ (SVG) ---
+        const EyeIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>);
+        const MusicIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>);
+        const RssIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>);
+        const XCircleIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>);
+        const LoaderIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" {...props}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>);
+        const SparklesIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9L12 3z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>);
+        const CameraIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>);
+        const Volume2Icon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>);
+        const VolumeXIcon = (props) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>);
+
+        // --- SESLENDİRME FONKSIYONU ---
+        const speakText = (() => {
+            let elevenLabsAudio = new Audio();
+            
+            const speakWithBrowser = (text, resolve, reject) => {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'tr-TR';
+                utterance.rate = 0.9;
+
+                const setVoiceAndSpeak = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    const turkishVoice = voices.find(voice => voice.lang === 'tr-TR');
+                    if (turkishVoice) {
+                        utterance.voice = turkishVoice;
+                    } else {
+                        console.warn("Türkçe ses bulunamadı, varsayılan ses kullanılacak.");
+                    }
+                    utterance.onend = resolve;
+                    utterance.onerror = (e) => reject(new Error(`SpeechSynthesis Hatası: ${e.error}`));
+                    
+                    window.speechSynthesis.cancel(); 
+                    window.speechSynthesis.speak(utterance);
+                };
+
+                if (window.speechSynthesis.getVoices().length > 0) {
+                    setVoiceAndSpeak();
+                } else {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        setVoiceAndSpeak();
+                        window.speechSynthesis.onvoiceschanged = null;
+                    };
+                }
+            };
+
+            return (text) => {
+                return new Promise(async (resolve, reject) => {
+                    window.speechSynthesis.cancel();
+                    if (elevenLabsAudio && !elevenLabsAudio.paused) {
+                        elevenLabsAudio.pause();
+                        elevenLabsAudio.currentTime = 0;
+                    }
+
+                    if (ELEVENLABS_API_KEY && ELEVENLABS_API_KEY.startsWith("sk_")) {
+                        const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
+                        const url = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`;
+                        const options = {
+                            method: 'POST',
+                            headers: { 'Accept': 'audio/mpeg', 'Content-Type': 'application/json', 'xi-api-key': ELEVENLABS_API_KEY },
+                            body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+                        };
+                        try {
+                            const response = await fetch(url, options);
+                            if (!response.ok) {
+                                const errorText = await response.text();
+                                let errorDetail = errorText;
+                                try {
+                                    const errorJson = JSON.parse(errorText);
+                                    errorDetail = errorJson.detail?.message || JSON.stringify(errorJson);
+                                } catch (e) {
+                                    // Hata metni JSON değilse ham metni kullan
+                                }
+                                throw new Error(`HTTP ${response.status} - ${response.statusText}. Detay: ${errorDetail}`);
+                            }
+                            const audioBlob = await response.blob();
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            elevenLabsAudio = new Audio(audioUrl);
+                            elevenLabsAudio.onended = resolve;
+                            elevenLabsAudio.onerror = reject;
+                            await elevenLabsAudio.play();
+                        } catch (error) {
+                            console.error("ElevenLabs API hatası. Tarayıcı sesine geçiliyor:", error);
+                            speakWithBrowser(text, resolve, reject);
+                        }
+                    } else {
+                        if (ELEVENLABS_API_KEY) console.warn("Geçersiz veya kotası dolmuş ElevenLabs API anahtarı. Tarayıcı sesi kullanılıyor.");
+                        speakWithBrowser(text, resolve, reject);
+                    }
+                });
+            };
+        })();
+
+        // --- HOOKS & YARDIMCI BİLEŞENLER ---
+        const useOnScreen = (options) => {
+            const ref = useRef(null);
+            const [isVisible, setIsVisible] = useState(false);
+            useEffect(() => {
+                const observer = new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting) {
+                        setIsVisible(true);
+                        observer.unobserve(entry.target);
+                    }
+                }, options);
+                const currentRef = ref.current;
+                if (currentRef) observer.observe(currentRef);
+                return () => { if (currentRef) observer.unobserve(currentRef); };
+            }, [ref, options]);
+            return [ref, isVisible];
+        };
+
+        const AnimatedSection = ({ children, ...props }) => {
+            const [ref, isVisible] = useOnScreen({ threshold: 0.1 });
+            return ( <div ref={ref} className={`fade-in-section ${isVisible ? 'is-visible' : ''} py-12 px-4 sm:px-6 lg:px-8`} {...props}> {children} </div> );
+        };
+        
+        const Notification = ({ message, onClear }) => {
+            if (!message) return null;
+            useEffect(() => {
+                const timer = setTimeout(() => { onClear(); }, 4000);
+                return () => clearTimeout(timer);
+            }, [message, onClear]);
+            return ( <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-red-600 text-white py-3 px-6 rounded-lg shadow-lg z-[100] transition-transform animate-bounce"> {message} </div> );
+        };
+
+        // --- GALERİ GÖRÜNÜMÜ BILEŞENLERİ ---
+        const ArtCard = ({ item, onSelect }) => (
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl overflow-hidden shadow-lg transform hover:scale-105 transition-transform duration-300 cursor-pointer" onClick={() => onSelect(item)}>
+                <img src={item.imageUrl} alt={item.artwork} className="w-full h-56 object-cover" onError={(e) => { e.target.src=`https://placehold.co/600x400/1f2937/ffffff?text=Resim+Yüklenemedi`; }}/>
+                <div className="p-4">
+                    <h3 className="text-xl font-bold text-red-300">{item.artwork}</h3>
+                    <p className="text-sm text-gray-300 mb-2">{item.artist} | {item.category}</p>
+                    <p className="text-sm text-gray-400 h-12 overflow-hidden">{item.description}</p>
+                </div>
+            </div>
+        );
+
+        const QrScannerModal = ({ onScanSuccess, onScanError, onStop }) => {
+            useEffect(() => {
+                const html5QrCode = new Html5Qrcode("qr-reader");
+                const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                    onScanSuccess(decodedText);
+                    html5QrCode.stop().catch(err => console.error("Tarama durdurulamadı.", err));
+                };
+                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+                    .catch(err => { onScanError("Kamera başlatılamadı. Lütfen kamera izni verdiğinizden emin olun."); });
+                return () => { if (html5QrCode.isScanning) { html5QrCode.stop().catch(err => {}); } };
+            }, [onScanSuccess, onScanError]);
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-gray-900 p-4 rounded-2xl shadow-2xl border border-gray-700 w-full max-w-md">
+                        <div id="qr-reader" className="rounded-lg overflow-hidden"></div>
+                        <p className="text-center text-gray-300 mt-4">QR kodu kameraya gösterin</p>
+                        <button onClick={onStop} className="w-full mt-4 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center transition-colors"><XCircleIcon className="mr-2" /> Kapat</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ArtworkDetailModal = ({ artwork, onClose, setNotification }) => {
+            const [isAnalyzing, setIsAnalyzing] = useState(false);
+            const [analysisText, setAnalysisText] = useState("");
+
+            const getArtAnalysis = async () => {
+                if (!artwork || isAnalyzing) return;
+                
+                setIsAnalyzing(true);
+                setAnalysisText("");
+                
+                try {
+                    const prompt = `Sen bir sanat tarihçisisin. Görme engelli bir kullanıcı için ${artwork.artist} tarafından yapılan '${artwork.artwork}' adlı tabloyu canlı, duygusal ve erişilebilir bir dille betimle. Renklerin hissettirdiği duyguları, tablonun atmosferini, kullanılan teknikleri ve olası hikayesini anlat. Cevabın bilgilendirici ve şiirsel olsun.`;
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    
+                    if (!response.ok) throw new Error(`Gemini API çağrısı başarısız: ${response.status}`);
+                    
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates[0]?.content?.parts?.[0]?.text) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setAnalysisText(text);
+                        await speakText(text);
+                    } else {
+                        throw new Error("API'den geçersiz yanıt formatı alındı.");
+                    }
+                } catch (error) {
+                    console.error("Yapay zeka analizi sırasında hata:", error);
+                    const errorMessage = `Analiz sırasında bir hata oluştu. Lütfen internet bağlantınızı kontrol edin.`;
+                    setAnalysisText(`[HATA] ${errorMessage}`);
+                    setNotification(errorMessage); // Kullanıcıya bildirim göster
+                    await speakText(errorMessage).catch(e => console.error("Hata mesajı okunurken hata:", e));
+                } finally {
+                    setIsAnalyzing(false);
+                }
+            };
+
+            if (!artwork) return null;
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-40 p-4">
+                    <div className="bg-gradient-to-br from-gray-900 to-[#1a1a2e] p-6 rounded-2xl shadow-2xl border border-red-500/50 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                         <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 className="text-3xl font-bold text-red-400">{artwork.artwork}</h2>
+                                <p className="text-gray-300 text-lg">{artwork.artist}</p>
+                            </div>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><XCircleIcon size={28} /></button>
+                        </div>
+                        <img src={artwork.imageUrl} alt={artwork.artwork} className="w-full h-72 object-cover rounded-xl mb-4 shadow-lg"/>
+                        <audio controls autoPlay className="w-full mb-4" src={artwork.musicUrl}>Tarayıcınız ses çalmayı desteklemiyor.</audio>
+                        <p className="text-gray-400 mb-6">{artwork.description}</p>
+                        <div className="pt-6 border-t border-gray-700">
+                            <button onClick={getArtAnalysis} disabled={isAnalyzing} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                {isAnalyzing ? <LoaderIcon /> : <SparklesIcon className="mr-2" />}
+                                {isAnalyzing ? "Analiz Ediliyor..." : "✨ Sanatsal Analiz Al"}
+                            </button>
+                            {analysisText && (
+                                <div className="mt-4 p-4 bg-gray-900/70 rounded-lg">
+                                    <h4 className="font-bold text-lg text-red-300 mb-2">Sanatsal Analiz</h4>
+                                    <p className="text-gray-300 whitespace-pre-wrap">{analysisText}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- ANA GÖRÜNÜMLER ---
+        const GalleryView = ({setNotification}) => {
+            const [allArtworks, setAllArtworks] = useState([]);
+            const [filteredArtworks, setFilteredArtworks] = useState([]);
+            const [selectedArtwork, setSelectedArtwork] = useState(null);
+            const [filterCategory, setFilterCategory] = useState("Tümü");
+            const [isLoading, setIsLoading] = useState(true);
+            const [isScanning, setIsScanning] = useState(false);
+            
+            useEffect(() => {
+                const repoBaseUrl = "https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/";
+                // GÜNCELLENDİ: Galeri içeriği isteğiniz üzerine değiştirildi.
+                const artworksData = [
+                    { "id": 1, "artwork": "Mona Lisa", "qr": "MONA_ORJ", "musicUrl": `${repoBaseUrl}Monalisa%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Monalisa.jpeg`, "artist": "Leonardo da Vinci", "description": "Rönesans döneminin en ünlü portrelerinden biri.", "category": "Klasik" },
+                    { "id": 2, "artwork": "İnci Küpeli Kız", "qr": "INCI_ORJ", "musicUrl": `${repoBaseUrl}Inci%20Kupeli%20Kız%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Inci%20Kupeli%20Kız.jpeg`, "artist": "Johannes Vermeer", "description": "Hollandalı sanatçının ışık kullanımıyla öne çıkan başyapıtı.", "category": "Klasik" },
+                    { "id": 5, "artwork": "İnci Küpeli Kız (Küp Versiyon)", "qr": "INCI_KUP", "musicUrl": `${repoBaseUrl}Inci%20Kupeli%20Kız%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Inci%20Kupeli%20Kız1.jpg`, "artist": "Johannes Vermeer", "description": "İnci Küpeli Kız tablosunun kübist bir yorumu.", "category": "Kübist" },
+                    { "id": 6, "artwork": "Picasso - Olga (Küp Versiyon)", "qr": "PICA_KUP", "musicUrl": `${repoBaseUrl}Picasso%20Olga%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Picasso%20Olga1.jpg`, "artist": "Pablo Picasso", "description": "Kübist dokunuşlarla modern bir portre çalışması.", "category": "Kübist" },
+                    { "id": 8, "artwork": "Mona Lisa (Küp Versiyon)", "qr": "MONA_KUP", "musicUrl": `${repoBaseUrl}Monalisa%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Monalisa1.jpg`, "artist": "Leonardo da Vinci", "description": "Mona Lisa tablosunun kübist bir yorumu.", "category": "Kübist" },
+                    { "id": 9, "artwork": "Picasso - Olga (Klasik Versiyon)", "qr": "PICA_KLASIK", "musicUrl": `${repoBaseUrl}Picasso%20Olga%20Son%20Hali.mp3`, "imageUrl": `${repoBaseUrl}Picasso%20Olga.jpg`, "artist": "Pablo Picasso", "description": "Pablo Picasso'nun Olga portresinin klasik bir yorumu.", "category": "Klasik" }
+                ];
+                setAllArtworks(artworksData);
+                setFilteredArtworks(artworksData);
+                setIsLoading(false);
+            }, []);
+            useEffect(() => {
+                if (filterCategory === "Tümü") setFilteredArtworks(allArtworks);
+                else setFilteredArtworks(allArtworks.filter(item => item.category === filterCategory));
+            }, [filterCategory, allArtworks]);
+            const handleScanSuccess = (decodedText) => {
+                setIsScanning(false);
+                const result = allArtworks.find((item) => item.qr === decodedText);
+                if (result) setSelectedArtwork(result);
+                else setNotification("Eşleşen eser bulunamadı.");
+            };
+            return (
+                <AnimatedSection>
+                    <h2 className="text-4xl font-bold text-center mb-12">Eser Galerisi</h2>
+                    <div className="max-w-3xl mx-auto mb-8 sticky top-20 z-20 bg-gray-900/70 backdrop-blur-md p-4 rounded-xl border border-gray-700">
+                        <div className="grid md:grid-cols-2 gap-4 items-end">
+                             <div>
+                                <label htmlFor="category-filter" className="block mb-2 font-medium text-gray-300">Kategoriye Göre Filtrele</label>
+                                <select id="category-filter" className="w-full p-3 bg-gray-800 border border-gray-600 rounded-lg text-white" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                                    <option value="Tümü">Tümü</option>
+                                    <option value="Klasik">Klasik</option>
+                                    <option value="Kübist">Kübist</option>
+                                </select>
+                            </div>
+                            <button onClick={() => setIsScanning(true)} className="w-full p-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex items-center justify-center"><CameraIcon className="mr-2" /> QR Kod Tara</button>
+                        </div>
+                    </div>
+                    {isLoading ? <div className="text-center p-10"><LoaderIcon size={48} /></div> : <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">{filteredArtworks.map((item) => <ArtCard key={item.id} item={item} onSelect={setSelectedArtwork} />)}</div>}
+                    {isScanning && <QrScannerModal onScanSuccess={handleScanSuccess} onScanError={(err) => {setIsScanning(false); setNotification(err);}} onStop={() => setIsScanning(false)} />}
+                    {selectedArtwork && <ArtworkDetailModal artwork={selectedArtwork} onClose={() => setSelectedArtwork(null)} setNotification={setNotification} />}
+                </AnimatedSection>
+            );
+        };
+        
+        const ComposerView = () => (
+            <AnimatedSection>
+                <div className="text-center">
+                    <h2 className="text-4xl font-bold text-center mb-4">PİKSENFONİ Besteci</h2>
+                    <p className="text-center text-gray-400 mb-8">Resimlerinizden müzik yaratın. Bu özellik yakında geliyor!</p>
+                    <a href="https://sev84.github.io/Holodvision-Piksenfoni-Besteci/" target="_blank" rel="noopener noreferrer" className="inline-block bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">Besteciyi Ayrı Sekmede Aç</a>
+                </div>
+            </AnimatedSection>
+        );
+
+        const LiveSensorDemoView = () => {
+            const [detectedColor, setDetectedColor] = useState({ name: 'Yükleniyor...', code: 'default' });
+            const [isFirebaseReady, setIsFirebaseReady] = useState(false);
+            const audioRef = useRef(new Audio());
+            const docRef = useRef(null);
+            const isInitialMount = useRef(true);
+
+            const colorData = {
+                krmz: { name: 'Kırmızı', hex: '#ef4444', sound: 'krmz' },
+                ysl: { name: 'Yeşil', hex: '#22c55e', sound: 'ysl' },
+                mavi: { name: 'Mavi', hex: '#3b82f6', sound: 'mavi' },
+                sari: { name: 'Sarı', hex: '#eab308', sound: 'sari' },
+                trnc: { name: 'Turuncu', hex: '#f97316', sound: 'trnc' },
+            };
+            
+            useEffect(() => {
+                const checkFirebase = setInterval(() => {
+                    if (window.db && window.appId && window.doc && window.onSnapshot && window.setDoc) {
+                        clearInterval(checkFirebase);
+
+                        const { db, doc, onSnapshot, appId, setDoc } = window;
+                        docRef.current = doc(db, `artifacts/${appId}/public/data/live-sensor`, "currentColor");
+
+                        const unsubscribe = onSnapshot(docRef.current, (snapshot) => {
+                            if (snapshot.exists()) {
+                                const data = snapshot.data();
+                                setDetectedColor({ 
+                                    name: colorData[data.colorCode]?.name || 'Bilinmiyor', 
+                                    code: data.colorCode 
+                                });
+                            } else {
+                                console.log("Belge bulunamadı, varsayılan oluşturuluyor.");
+                                setDoc(docRef.current, { colorCode: 'mavi' }).catch(e => console.error(e));
+                            }
+                            setIsFirebaseReady(true);
+                        }, (error) => {
+                            console.error("Firestore onSnapshot hatası:", error);
+                            setIsFirebaseReady(true);
+                        });
+                        return () => unsubscribe();
+                    }
+                }, 100);
+            }, []);
+
+            const handleColorChange = async (colorCode) => {
+                if (docRef.current && window.setDoc) {
+                    try {
+                        await window.setDoc(docRef.current, { colorCode });
+                    } catch (error) {
+                        console.error("Firestore'a yazma hatası:", error);
+                    }
+                }
+            };
+
+            useEffect(() => {
+                document.body.style.backgroundColor = colorData[detectedColor.code]?.hex || '#0c0a18';
+                
+                if (isInitialMount.current) {
+                    isInitialMount.current = false;
+                    return;
+                }
+
+                const colorInfo = colorData[detectedColor.code];
+                if (colorInfo) {
+                    const audio = audioRef.current;
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.src = `https://sev84.github.io/Holodvision-Piksenfoni-Besteci/${colorInfo.sound}.wav`;
+                    audio.play().catch(error => {
+                        console.error("Ses çalma hatası:", error);
+                    });
+                }
+
+                return () => {
+                    document.body.style.backgroundColor = '#0c0a18';
+                }
+            }, [detectedColor]);
+
+            return (
+                <AnimatedSection>
+                    <div className="w-full max-w-2xl mx-auto text-center bg-gray-800/50 dark:bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
+                        <h1 className="text-4xl font-bold text-white mb-2">Canlı & Paylaşımlı Sensör Demosu</h1>
+                        <p className="text-gray-400 mb-6">Bir renk seçin. Seçiminiz bu sayfayı görüntüleyen herkesle anında senkronize edilecektir.</p>
+                        
+                        {!isFirebaseReady ? (
+                            <div className="flex justify-center items-center h-24">
+                                <LoaderIcon size={36} />
+                                <p className="ml-4 text-lg">Firebase'e Bağlanılıyor...</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-lg text-gray-300 mb-6">
+                                    Algılanan renk: <strong className="font-bold text-2xl" style={{color: colorData[detectedColor.code]?.hex || '#a78bfa' }}>{detectedColor.name}</strong>
+                                </p>
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    {Object.keys(colorData).map(key => (
+                                        <button 
+                                            key={key}
+                                            onClick={() => handleColorChange(key)}
+                                            className="text-white font-bold py-3 px-6 rounded-lg shadow-md transform hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                                            style={{ backgroundColor: colorData[key].hex }}
+                                            disabled={!isFirebaseReady}
+                                        >
+                                            {colorData[key].name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </AnimatedSection>
+            );
+        };
+        
+        const ParticleBackground = () => {
+            const canvasRef = useRef(null);
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                let particles = [];
+                const resizeCanvas = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    let numberOfParticles = (canvas.height * canvas.width) / 9000;
+                    particles = [];
+                    for (let i = 0; i < numberOfParticles; i++) {
+                        particles.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            size: Math.random() * 2 + 1,
+                            speedX: Math.random() * 1 - 0.5,
+                            speedY: Math.random() * 1 - 0.5,
+                        });
+                    }
+                };
+                const animate = () => {
+                    if(!canvasRef.current) return;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    for (let i = 0; i < particles.length; i++) {
+                        let p = particles[i];
+                        p.x += p.speedX;
+                        p.y += p.speedY;
+                        if (p.x > canvas.width || p.x < 0) p.speedX *= -1;
+                        if (p.y > canvas.height || p.y < 0) p.speedY *= -1;
+                        ctx.fillStyle = 'rgba(233, 69, 96, 0.5)';
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    requestAnimationFrame(animate);
+                };
+                resizeCanvas();
+                animate();
+                window.addEventListener('resize', resizeCanvas);
+                return () => window.removeEventListener('resize', resizeCanvas);
+            }, []);
+            return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full" style={{ zIndex: -1 }} />;
+        };
+
+
+        // --- ANA UYGULAMA BILEŞENİ ---
+        function App() {
+            const [view, setView] = useState('gallery');
+            const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(true);
+            const [isStarting, setIsStarting] = useState(false);
+            const [notification, setNotification] = useState("");
+            const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+
+            const handleStartExperience = async () => {
+                if (isStarting) return;
+                setIsStarting(true);
+
+                const welcomeText = "Piksenfoni'ye hoş geldiniz. Bu uygulama, görme engelli bireyler için sanatı sesler ve yapay zeka betimlemeleriyle erişilebilir kılmayı amaçlamaktadır.";
+                
+                try {
+                    await speakText(welcomeText);
+                } catch (error) {
+                    console.error("Giriş seslendirmesi sırasında hata oluştu:", error);
+                    setNotification("Seslendirme başlatılamadı. Lütfen tarayıcı ayarlarınızı kontrol edin.");
+                }
+                
+                toggleMusic(true); // Müziği başlat ve durumu 'çalıyor' olarak ayarla
+                
+                setIsWelcomeModalOpen(false);
+                setIsStarting(false);
+            };
+
+            const toggleMusic = (forcePlay = null) => {
+                const bgMusic = document.getElementById('bg-music-player');
+                if (bgMusic) {
+                    const shouldPlay = forcePlay !== null ? forcePlay : !isMusicPlaying;
+                    if (shouldPlay) {
+                        bgMusic.play().catch(error => console.error("Müzik çalınamadı:", error));
+                    } else {
+                        bgMusic.pause();
+                    }
+                    setIsMusicPlaying(shouldPlay);
+                }
+            };
+
+            const NavButton = ({ targetView, icon, children }) => (
+                <button onClick={() => setView(targetView)} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${view === targetView ? 'bg-red-700 text-white' : 'text-gray-300 hover:bg-red-700/50 hover:text-white'} flex items-center gap-2`}>
+                    {icon} {children}
+                </button>
+            );
+            return (
+                <div className="text-white min-h-screen">
+                    <Notification message={notification} onClear={() => setNotification("")} />
+                    {view === 'gallery' && <ParticleBackground />}
+                    {isWelcomeModalOpen && (
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+                             <div className="bg-gradient-to-br from-gray-900 to-[#1a1a2e] p-8 rounded-2xl shadow-2xl border border-red-500/50 max-w-lg w-full text-center">
+                                 <img src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="PİKSENFONİ Logo" className="mx-auto mb-4 h-20"/>
+                                 <h2 className="text-3xl font-bold text-red-400 mb-4">PİKSENFONİ'ye Hoş Geldiniz!</h2>
+                                 <p className="text-gray-300 mb-8">Sanatı deneyimlemek, bestelemek ve canlı sensörlerle etkileşime geçmek için sekmeleri kullanın.</p>
+                                 <button onClick={handleStartExperience} disabled={isStarting} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-wait flex items-center justify-center w-full">
+                                     {isStarting ? <LoaderIcon className="mr-2" /> : null}
+                                     {isStarting ? 'Başlatılıyor...' : 'Deneyime Başla'}
+                                 </button>
+                             </div>
+                        </div>
+                    )}
+                    <nav className="bg-black/20 backdrop-blur-md sticky w-full z-30 top-0">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                             <div className="flex items-center justify-between h-16">
+                                <div className="flex items-center">
+                                    <img className="h-10" src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="Logo"/>
+                                    {!isWelcomeModalOpen && (
+                                        <button onClick={() => toggleMusic()} className="ml-4 text-gray-300 hover:text-white transition-colors p-2 rounded-full hover:bg-red-700/50">
+                                            {isMusicPlaying ? <Volume2Icon /> : <VolumeXIcon />}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex items-baseline space-x-4">
+                                    <NavButton targetView="gallery" icon={<EyeIcon />}>Galeri</NavButton>
+                                    <NavButton targetView="composer" icon={<MusicIcon />}>PİKSENFONİ Besteci</NavButton>
+                                    <NavButton targetView="sensor" icon={<RssIcon />}>Canlı Sensör Demosu</NavButton>
+                                </div>
+                             </div>
+                        </div>
+                    </nav>
+                    <main>
+                        {view === 'gallery' && <GalleryView setNotification={setNotification} />}
+                        {view === 'composer' && <ComposerView />}
+                        {view === 'sensor' && <LiveSensorDemoView />}
+                    </main>
+                     <footer className="text-center text-sm text-gray-500 py-8 mt-8 border-t border-gray-800">
+                         <p>© 2025 PİKSENFONİ - HOLO-D-VISION Takımı. Tüm hakları saklıdır.</p>
+                         <p>TEKNOFEST Engelsiz Yaşam Teknolojileri Yarışması</p>
+                     </footer>
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
