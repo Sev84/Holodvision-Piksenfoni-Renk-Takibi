@@ -141,7 +141,7 @@
 
         const AnimatedSection = ({ children, ...props }) => {
             const [ref, isVisible] = useOnScreen({ threshold: 0.1 });
-            return ( <div ref={ref} className={`fade-in-section ${isVisible ? 'is-visible' : ''} py-16 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center`} {...props}> {children} </div> );
+            return ( <div ref={ref} className={`fade-in-section ${isVisible ? 'is-visible' : ''} py-12 px-4 sm:px-6 lg:px-8`} {...props}> {children} </div> );
         };
         
         const Notification = ({ message, onClear }) => {
@@ -284,7 +284,7 @@
                 else setNotification("Eşleşen eser bulunamadı.");
             };
             return (
-                <div className="w-full">
+                <AnimatedSection>
                     <h2 className="text-4xl font-bold text-center mb-12">Eser Galerisi</h2>
                     <div className="max-w-3xl mx-auto mb-8 sticky top-20 z-20 bg-gray-900/70 backdrop-blur-md p-4 rounded-xl border border-gray-700">
                         <div className="grid md:grid-cols-2 gap-4 items-end">
@@ -302,16 +302,18 @@
                     {isLoading ? <div className="text-center p-10"><LoaderIcon size={48} /></div> : <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">{filteredArtworks.map((item) => <ArtCard key={item.id} item={item} onSelect={setSelectedArtwork} />)}</div>}
                     {isScanning && <QrScannerModal onScanSuccess={handleScanSuccess} onScanError={(err) => {setIsScanning(false); setNotification(err);}} onStop={() => setIsScanning(false)} />}
                     {selectedArtwork && <ArtworkDetailModal artwork={selectedArtwork} onClose={() => setSelectedArtwork(null)} setNotification={setNotification} />}
-                </div>
+                </AnimatedSection>
             );
         };
         
         const ComposerView = () => (
-            <div className="w-full text-center">
-                <h2 className="text-4xl font-bold text-center mb-4">PİKSENFONİ Besteci</h2>
-                <p className="text-center text-gray-400 mb-8">Resimlerinizden müzik yaratın. Bu özellik yakında geliyor!</p>
-                <a href="https://sev84.github.io/Holodvision-Piksenfoni-Besteci/" target="_blank" rel="noopener noreferrer" className="inline-block bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">Besteciyi Ayrı Sekmede Aç</a>
-            </div>
+            <AnimatedSection>
+                <div className="text-center">
+                    <h2 className="text-4xl font-bold text-center mb-4">PİKSENFONİ Besteci</h2>
+                    <p className="text-center text-gray-400 mb-8">Resimlerinizden müzik yaratın. Bu özellik yakında geliyor!</p>
+                    <a href="https://sev84.github.io/Holodvision-Piksenfoni-Besteci/" target="_blank" rel="noopener noreferrer" className="inline-block bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">Besteciyi Ayrı Sekmede Aç</a>
+                </div>
+            </AnimatedSection>
         );
 
         const LiveSensorDemoView = () => {
@@ -356,78 +358,86 @@
             }, [detectedColor]);
 
             return (
-                <div className="w-full max-w-2xl mx-auto text-center">
-                    <h1 className="text-4xl font-bold text-white mb-2">Canlı Sensör Simülatörü</h1>
-                    <p className="text-gray-400 mb-6">Deneyap Kart'tan gelen renk kodunu buraya manuel olarak girin.</p>
-                    
-                    <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-4 mb-6">
-                        <input 
-                            type="text"
-                            value={manualInput}
-                            onChange={(e) => setManualInput(e.target.value)}
-                            placeholder="Örn: krmz, mavi, ysl..."
-                            className="flex-grow p-3 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        />
-                        <button type="submit" className="p-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg">Gönder</button>
-                    </form>
+                <AnimatedSection>
+                    <div className="w-full max-w-2xl mx-auto text-center bg-gray-800/50 dark:bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-700">
+                        <h1 className="text-4xl font-bold text-white mb-2">Canlı Sensör Simülatörü</h1>
+                        <p className="text-gray-400 mb-6">Deneyap Kart'tan gelen renk kodunu buraya manuel olarak girin.</p>
+                        
+                        <form onSubmit={handleManualSubmit} className="flex flex-col sm:flex-row gap-4 mb-6">
+                            <input 
+                                type="text"
+                                value={manualInput}
+                                onChange={(e) => setManualInput(e.target.value)}
+                                placeholder="Örn: krmz, mavi, ysl..."
+                                className="flex-grow p-3 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            />
+                            <button type="submit" className="p-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg">Gönder</button>
+                        </form>
 
-                    <p className="text-lg text-gray-300 mb-6">
-                        Algılanan renk: <strong className="font-bold text-2xl" style={{color: colorData[detectedColor.code]?.hex || '#a78bfa' }}>{detectedColor.name}</strong>
-                    </p>
-                </div>
+                        <p className="text-lg text-gray-300 mb-6">
+                            Algılanan renk: <strong className="font-bold text-2xl" style={{color: colorData[detectedColor.code]?.hex || '#a78bfa' }}>{detectedColor.name}</strong>
+                        </p>
+                    </div>
+                </AnimatedSection>
             );
         };
         
-        const AnaSayfaView = ({ onStart }) => (
-            <div className="w-full text-center">
-                <img src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="PİKSENFONİ Logo" className="mx-auto mb-8 h-40"/>
-                <h1 className="text-6xl font-bold text-pink-400 mb-4 tracking-wider">PİKSENFONİ</h1>
-                <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-                    Renklerle Seslerin Buluştuğu Sınırsız Dünya: Görme engelli bireyler için sanatı işitsel ve dokunsal bir deneyime dönüştürüyoruz.
-                </p>
-                <a href="#proje" onClick={onStart} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105 inline-block">
-                    Deneyime Başla
-                </a>
+        // YENİ EKLENDİ: Ana Sayfa Bileşeni
+        const AnaSayfaView = () => (
+            <div className="flex flex-col items-center justify-center text-center min-h-[calc(100vh-12rem)]">
+                 <AnimatedSection>
+                    <img src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="PİKSENFONİ Logo" className="mx-auto mb-8 h-40"/>
+                    <h1 className="text-6xl font-bold text-pink-400 mb-4 tracking-wider">PİKSENFONİ</h1>
+                    <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+                        Renklerle Seslerin Buluştuğu Sınırsız Dünya: Görme engelli bireyler için sanatı işitsel ve dokunsal bir deneyime dönüştürüyoruz.
+                    </p>
+                </AnimatedSection>
             </div>
         );
 
+        // YENİ EKLENDİ: Proje Hakkında Bileşeni
         const ProjeView = () => (
-            <div className="w-full max-w-5xl mx-auto">
-                <h2 className="text-4xl font-bold text-center mb-12">Proje Hakkında</h2>
-                <div className="grid md:grid-cols-3 gap-8 mb-16 text-center">
-                    <div className="bg-gray-800/50 p-6 rounded-xl">
-                        <h3 className="text-2xl font-bold text-red-300 mb-3">Amacımız</h3>
-                        <p className="text-gray-400">Görme engelli bireylerin sanata erişimini artırmak ve sanat eserlerini çoklu duyusal yollarla, özgürce deneyimlemelerini sağlamak.</p>
+            <AnimatedSection>
+                <div className="max-w-5xl mx-auto">
+                    <h2 className="text-4xl font-bold text-center mb-12">Proje Hakkında</h2>
+                    <div className="grid md:grid-cols-3 gap-8 mb-16 text-center">
+                        <div className="bg-gray-800/50 p-6 rounded-xl">
+                            <h3 className="text-2xl font-bold text-red-300 mb-3">Amacımız</h3>
+                            <p className="text-gray-400">Görme engelli bireylerin sanata erişimini artırmak ve sanat eserlerini çoklu duyusal yollarla, özgürce deneyimlemelerini sağlamak.</p>
+                        </div>
+                        <div className="bg-gray-800/50 p-6 rounded-xl">
+                            <h3 className="text-2xl font-bold text-red-300 mb-3">Teknolojimiz</h3>
+                            <p className="text-gray-400">RGB renk sensörlü akıllı eldiven, renkleri notalara ve titreşimlere dönüştürür. QR kod tabanlı web uygulamamız ise eserlere özel müziklere anında erişim sunar.</p>
+                        </div>
+                        <div className="bg-gray-800/50 p-6 rounded-xl">
+                            <h3 className="text-2xl font-bold text-red-300 mb-3">Hedef Kitlemiz</h3>
+                            <p className="text-gray-400">Görme engelli bireyler, özel eğitim kurumları, müzeler, sanat galerileri ve sanata erişilebilir bir pencereden bakmak isteyen herkes.</p>
+                        </div>
                     </div>
-                    <div className="bg-gray-800/50 p-6 rounded-xl">
-                        <h3 className="text-2xl font-bold text-red-300 mb-3">Teknolojimiz</h3>
-                        <p className="text-gray-400">RGB renk sensörlü akıllı eldiven, renkleri notalara ve titreşimlere dönüştürür. QR kod tabanlı web uygulamamız ise eserlere özel müziklere anında erişim sunar.</p>
-                    </div>
-                    <div className="bg-gray-800/50 p-6 rounded-xl">
-                        <h3 className="text-2xl font-bold text-red-300 mb-3">Hedef Kitlemiz</h3>
-                        <p className="text-gray-400">Görme engelli bireyler, özel eğitim kurumları, müzeler, sanat galerileri ve sanata erişilebilir bir pencereden bakmak isteyen herkes.</p>
+                    <div className="text-center bg-gray-800/50 p-8 rounded-xl">
+                        <h3 className="text-3xl font-bold mb-4">Renk ve Ses Eldiveni</h3>
+                        <p className="text-gray-400 max-w-2xl mx-auto mb-6">Eldiveni kullanarak tablolardaki renklere dokunun ve notaları duyun. Sanatla aranızdaki engelleri kaldırın.</p>
+                        <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                            ⚡ Eldiveni Bağla
+                        </button>
+                        <p className="text-sm text-gray-500 mt-3">Bağlı Değil</p>
                     </div>
                 </div>
-                <div className="text-center bg-gray-800/50 p-8 rounded-xl">
-                    <h3 className="text-3xl font-bold mb-4">Renk ve Ses Eldiveni</h3>
-                    <p className="text-gray-400 max-w-2xl mx-auto mb-6">Eldiveni kullanarak tablolardaki renklere dokunun ve notaları duyun. Sanatla aranızdaki engelleri kaldırın.</p>
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-transform transform hover:scale-105">
-                        ⚡ Eldiveni Bağla
-                    </button>
-                    <p className="text-sm text-gray-500 mt-3">Bağlı Değil</p>
-                </div>
-            </div>
+            </AnimatedSection>
         );
 
+        // YENİ EKLENDİ: İletişim Bileşeni
         const IletisimView = () => (
-            <div className="w-full max-w-2xl mx-auto text-center">
-                <h2 className="text-4xl font-bold mb-4">İletişim</h2>
-                <p className="text-gray-400 mb-8">Projemizle ilgili soru, görüş ve önerileriniz için bizimle iletişime geçebilirsiniz.</p>
-                <div className="bg-gray-800/50 p-8 rounded-xl">
-                    <p className="text-lg text-red-300">HOLO-D-VISION Takımı</p>
-                    <a href="mailto:ornek@mail.com" className="text-white hover:underline">ornek@mail.com</a>
+             <AnimatedSection>
+                <div className="max-w-2xl mx-auto text-center">
+                    <h2 className="text-4xl font-bold mb-4">İletişim</h2>
+                    <p className="text-gray-400 mb-8">Projemizle ilgili soru, görüş ve önerileriniz için bizimle iletişime geçebilirsiniz.</p>
+                    <div className="bg-gray-800/50 p-8 rounded-xl">
+                        <p className="text-lg text-red-300">HOLO-D-VISION Takımı</p>
+                        <a href="mailto:ornek@mail.com" className="text-white hover:underline">ornek@mail.com</a>
+                    </div>
                 </div>
-            </div>
+            </AnimatedSection>
         );
 
         const ParticleBackground = () => {
@@ -476,9 +486,9 @@
         };
 
         function App() {
+            const [view, setView] = useState('anasayfa'); // Varsayılan görünüm Ana Sayfa
             const [notification, setNotification] = useState("");
             const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-            const [showNav, setShowNav] = useState(false);
 
             const toggleMusic = (forcePlay = null) => {
                 const bgMusic = document.getElementById('bg-music-player');
@@ -493,67 +503,50 @@
                 }
             };
             
-            const handleStartExperience = async () => {
-                const welcomeText = "Piksenfoni'ye hoş geldiniz. Bu uygulama, görme engelli bireyler için sanatı sesler ve yapay zeka betimlemeleriyle erişilebilir kılmayı amaçlamaktadır.";
-                try {
-                    await speakText(welcomeText);
-                } catch (error) {
-                    console.error("Giriş seslendirmesi sırasında hata oluştu:", error);
-                    setNotification("Seslendirme başlatılamadı. Lütfen tarayıcı ayarlarınızı kontrol edin.");
+            // Sayfa değiştiğinde müziği başlat
+            useEffect(() => {
+                if(view !== 'anasayfa' && !isMusicPlaying){
+                    toggleMusic(true);
                 }
-                toggleMusic(true);
-                setShowNav(true);
-            };
+            }, [view]);
 
-            const NavButton = ({ href, icon, children }) => (
-                <a href={href} className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-red-700/50 hover:text-white flex items-center gap-2 transition-colors">
+            const NavButton = ({ targetView, icon, children }) => (
+                <button onClick={() => setView(targetView)} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${view === targetView ? 'bg-red-700 text-white' : 'text-gray-300 hover:bg-red-700/50 hover:text-white'} flex items-center gap-2`}>
                     {icon} {children}
-                </a>
+                </button>
             );
             return (
-                <div className="text-white">
+                <div className="text-white min-h-screen">
                     <Notification message={notification} onClear={() => setNotification("")} />
-                    <ParticleBackground />
+                    {(view === 'gallery' || view === 'anasayfa') && <ParticleBackground />}
                     
-                    <nav className={`bg-black/20 backdrop-blur-md sticky w-full z-30 top-0 transition-opacity duration-500 ${showNav ? 'opacity-100' : 'opacity-0'}`}>
+                    <nav className="bg-black/20 backdrop-blur-md sticky w-full z-30 top-0">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                              <div className="flex items-center justify-between h-16">
                                 <div className="flex items-center">
-                                    <a href="#anasayfa"><img className="h-10 cursor-pointer" src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="Logo" /></a>
+                                    <img className="h-10 cursor-pointer" src="https://raw.githubusercontent.com/Sev84/Holodvision-Duyularin-Harmonisi/main/logo1111111.png" alt="Logo" onClick={() => setView('anasayfa')}/>
                                     <button onClick={() => toggleMusic()} className="ml-4 text-gray-300 hover:text-white transition-colors p-2 rounded-full hover:bg-red-700/50">
                                         {isMusicPlaying ? <Volume2Icon /> : <VolumeXIcon />}
                                     </button>
                                 </div>
                                 <div className="hidden md:flex items-baseline space-x-4">
-                                    <NavButton href="#anasayfa" icon={<HomeIcon />}>Ana Sayfa</NavButton>
-                                    <NavButton href="#proje" icon={<FileTextIcon />}>Proje</NavButton>
-                                    <NavButton href="#galeri" icon={<EyeIcon />}>Galeri</NavButton>
-                                    <NavButton href="#sensor" icon={<RssIcon />}>Canlı Sensör</NavButton>
-                                    <NavButton href="#besteci" icon={<MusicIcon />}>Besteci</NavButton>
-                                    <NavButton href="#iletisim" icon={<MailIcon />}>İletişim</NavButton>
+                                    <NavButton targetView="anasayfa" icon={<HomeIcon />}>Ana Sayfa</NavButton>
+                                    <NavButton targetView="proje" icon={<FileTextIcon />}>Proje</NavButton>
+                                    <NavButton targetView="gallery" icon={<EyeIcon />}>Galeri</NavButton>
+                                    <NavButton targetView="sensor" icon={<RssIcon />}>Canlı Sensör</NavButton>
+                                    <NavButton targetView="composer" icon={<MusicIcon />}>Besteci</NavButton>
+                                    <NavButton targetView="iletisim" icon={<MailIcon />}>İletişim</NavButton>
                                 </div>
                              </div>
                         </div>
                     </nav>
                     <main>
-                        <AnimatedSection id="anasayfa">
-                            <AnaSayfaView onStart={handleStartExperience} />
-                        </AnimatedSection>
-                        <AnimatedSection id="proje">
-                            <ProjeView />
-                        </AnimatedSection>
-                        <AnimatedSection id="galeri">
-                             <GalleryView setNotification={setNotification} />
-                        </AnimatedSection>
-                        <AnimatedSection id="sensor">
-                            <LiveSensorDemoView />
-                        </AnimatedSection>
-                        <AnimatedSection id="besteci">
-                            <ComposerView />
-                        </AnimatedSection>
-                        <AnimatedSection id="iletisim">
-                            <IletisimView />
-                        </AnimatedSection>
+                        {view === 'anasayfa' && <AnaSayfaView />}
+                        {view === 'proje' && <ProjeView />}
+                        {view === 'gallery' && <GalleryView setNotification={setNotification} />}
+                        {view === 'composer' && <ComposerView />}
+                        {view === 'sensor' && <LiveSensorDemoView />}
+                        {view === 'iletisim' && <IletisimView />}
                     </main>
                      <footer className="text-center text-sm text-gray-500 py-8 mt-8 border-t border-gray-800">
                          <p>© 2025 PİKSENFONİ - HOLO-D-VISION Takımı. Tüm hakları saklıdır.</p>
@@ -569,4 +562,3 @@
     </script>
 </body>
 </html>
-
